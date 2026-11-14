@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 type Item = { name: string; emoji: string; rarity: string; color: string; price: number; };
 type InventoryItem = Item & { uid: string };
-const cases = [ { name: 'Starter Case', emoji: '📦', price: 19 }, { name: 'Brainrot Case', emoji: '💗', price: 500 }, { name: 'Rare Case', emoji: '💎', price: 1500 }, { name: 'Legendary Case', emoji: '👑', price: 5000 }, { name: 'God Case', emoji: '🔥', price: 15000 }, ];
+const cases = [ { name: 'Starter Case', emoji: '📦', price: 19 }, { name: 'Brainrot Chaos Case', emoji: '🔥', price: 75 }, { name: 'Rare Case', emoji: '💎', price: 1500 }, { name: 'Legendary Case', emoji: '👑', price: 5000 }, { name: 'God Case', emoji: '🔥', price: 15000 }, ];
 const loot: Item[] = [ { name: 'Noobini Pizzanini', emoji: '🍕', rarity: 'Common', color: '#aaaaaa', price: 100 }, { name: 'Lirili Larila', emoji: '🐘', rarity: 'Common', color: '#aaaaaa', price: 150 }, { name: 'Tim Cheese', emoji: '🧀', rarity: 'Uncommon', color: '#42b86b', price: 500 }, { name: 'Trippi Troppi', emoji: '🦐', rarity: 'Rare', color: '#3c91ed', price: 650 }, { name: 'Brr Brr Patapim', emoji: '🌳', rarity: 'Epic', color: '#a34dff', price: 1500 }, { name: 'Cappuccino Assassino', emoji: '☕', rarity: 'Legendary', color: '#ffad33', price: 5000 }, { name: 'Bombardiro Crocodilo', emoji: '🐊', rarity: 'Mythic', color: '#ff4545', price: 15000 }, ];
 
 type WeightedItem = Item & { weight: number };
@@ -19,6 +19,29 @@ const starterLoot: WeightedItem[] = [
   { name: 'Los 67', emoji: '6️⃣', rarity: 'Common', color: '#aaaaaa', price: 8, weight: 18 },
   { name: 'Los Puggies', emoji: '🐾', rarity: 'Common', color: '#aaaaaa', price: 15, weight: 15 },
 ];
+
+const chaosLoot: WeightedItem[] = [
+  { name: 'Ventoliero Pavonero', emoji: '🦚', rarity: 'Rare', color: '#3c91ed', price: 35, weight: 22 },
+  { name: 'Los Spaghettis', emoji: '🍝', rarity: 'Rare', color: '#3c91ed', price: 40, weight: 20 },
+  { name: 'Nacho Spyder', emoji: '🕷️', rarity: 'Epic', color: '#a34dff', price: 65, weight: 17 },
+  { name: 'Noodle Noodle Poodle', emoji: '🐩', rarity: 'Epic', color: '#a34dff', price: 70, weight: 15 },
+  { name: 'Capitano Moby', emoji: '🐳', rarity: 'Legendary', color: '#ffad33', price: 110, weight: 9 },
+  { name: 'Spooky and Pumky', emoji: '🎃', rarity: 'Legendary', color: '#ffad33', price: 130, weight: 7 },
+  { name: "S'more Serat", emoji: '🍫', rarity: 'Legendary', color: '#ffad33', price: 150, weight: 5 },
+  { name: 'Gold and Diamond', emoji: '💎', rarity: 'Mythic', color: '#ff4545', price: 220, weight: 3 },
+  { name: 'Hydra Serpent', emoji: '🐍', rarity: 'Mythic', color: '#ff4545', price: 300, weight: 1.9 },
+  { name: 'La Casa Boo', emoji: '👻', rarity: 'Secret', color: '#ff4dd8', price: 500, weight: 0.1 },
+];
+
+function pickChaosDrop(): Item {
+  const total = chaosLoot.reduce((sum, item) => sum + item.weight, 0);
+  let roll = Math.random() * total;
+  for (const item of chaosLoot) {
+    roll -= item.weight;
+    if (roll <= 0) return item;
+  }
+  return chaosLoot[0];
+}
 
 function pickStarterDrop(): Item {
   const total = starterLoot.reduce((sum, item) => sum + item.weight, 0);
@@ -43,6 +66,16 @@ const brainrotImages: Record<string, string> = {
   'W or L': '/brain-rot-game/images/brainrots/w-or-l.png',
   'Los 67': '/brain-rot-game/images/brainrots/los-67.png',
   'Los Puggies': '/brain-rot-game/images/brainrots/los-puggies.png',
+  'Ventoliero Pavonero': '/brain-rot-game/images/brainrots/ventoilero-pavonero.png',
+  'Los Spaghettis': '/brain-rot-game/images/brainrots/los-spaghettis.png',
+  'Nacho Spyder': '/brain-rot-game/images/brainrots/nacho-spyder.png',
+  'Noodle Noodle Poodle': '/brain-rot-game/images/brainrots/noodle-noodle-poodle.png',
+  'Capitano Moby': '/brain-rot-game/images/brainrots/capitano-moby.png',
+  'Spooky and Pumky': '/brain-rot-game/images/brainrots/spooky-and-pumky.png',
+  "S'more Serat": '/brain-rot-game/images/brainrots/smore-serat.png',
+  'Gold and Diamond': '/brain-rot-game/images/brainrots/gold-and-diamond.png',
+  'Hydra Serpent': '/brain-rot-game/images/brainrots/hydra-seprent.png',
+  'La Casa Boo': '/brain-rot-game/images/brainrots/la-casa-boo.png',
 };
 
 function ItemImage({ item, size }: { item: Item; size: number }) {
@@ -103,12 +136,18 @@ function openCase() {
   setPositions(Array(openQuantity).fill(0));
   setTransitionOn(false);
 
-  const caseLoot: Item[] = selectedCase.name === 'Starter Case' ? starterLoot : loot;
+  const caseLoot: Item[] = selectedCase.name === 'Starter Case'
+    ? starterLoot
+    : selectedCase.name === 'Brainrot Chaos Case'
+      ? chaosLoot
+      : loot;
 
   const prizes: Item[] = Array.from({ length: openQuantity }, () =>
     selectedCase.name === 'Starter Case'
       ? pickStarterDrop()
-      : caseLoot[Math.floor(Math.random() * caseLoot.length)]
+      : selectedCase.name === 'Brainrot Chaos Case'
+        ? pickChaosDrop()
+        : caseLoot[Math.floor(Math.random() * caseLoot.length)]
   );
 
   const newStrips = prizes.map(prize => {
@@ -197,7 +236,7 @@ function doUpgrade() {
   }, duration + 100);
 }
 const selectedSource = inventory.find(item => item.uid === selectedItem);
-const possibleTargets = selectedSource ? starterLoot.filter(item => item.price > selectedSource.price) : [];
+const possibleTargets = selectedSource ? [...starterLoot, ...chaosLoot].filter(item => item.price > selectedSource.price) : [];
 const chance = selectedSource && targetItem
   ? Math.min(100, selectedSource.price / targetItem.price * 100)
   : 0;
@@ -237,7 +276,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
           <div
             key={c.name}
             onClick={() => {
-              if (index !== 0) return;
+              if (index > 1) return;
               setSelectedCase(c);
               setWinner(null);
               setResult('');
@@ -245,15 +284,17 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
             }}
             style={{
               ...cardStyle,
-              cursor: index === 0 ? 'pointer' : 'default',
+              cursor: index <= 1 ? 'pointer' : 'default',
               gridColumn: 'auto',
-              opacity: index === 0 ? 1 : 0.5,
+              opacity: index <= 1 ? 1 : 0.5,
             }}
           >
-            {index === 0 ? (
+            {index <= 1 ? (
   <img
-    src="/brain-rot-game/images/starter-case.png"
-    alt="Starter Case"
+    src={index === 0
+      ? "/brain-rot-game/images/starter-case.png"
+      : "/brain-rot-game/images/cases/brainrot-chaos-case.png"}
+    alt={c.name}
     style={{
       width: '100%',
       maxWidth: '100%',
@@ -269,7 +310,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
             <h3>{c.name}</h3>
             <p style={{ color: '#ffd34d' }}>{c.price.toLocaleString()} SL</p>
             <button style={buttonStyle}>
-              {index === 0 ? 'SELECT CASE' : 'COMING SOON'}
+              {index <= 1 ? 'SELECT CASE' : 'COMING SOON'}
             </button>
           </div>
         ))}
@@ -408,15 +449,17 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
 
       <p style={{ textAlign: 'center', color: '#ffd34d' }}>{result}</p>
 
-      <h2 style={{ marginTop: 30 }}>🎁 STARTER CASE — DROP LIST</h2>
-      <p style={{ color: '#999' }}>All 12 possible drops</p>
+      <h2 style={{ marginTop: 30 }}>🎁 {selectedCase.name.toUpperCase()} — DROP LIST</h2>
+      <p style={{ color: '#999' }}>
+        {selectedCase.name === 'Brainrot Chaos Case' ? 'All 10 possible drops and their chances' : 'All 12 possible drops'}
+      </p>
 
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
         gap: 10,
       }}>
-        {starterLoot.map((item) => (
+        {(selectedCase.name === 'Brainrot Chaos Case' ? chaosLoot : starterLoot).map((item) => (
           <div key={item.name} style={{
             ...cardStyle,
             border: `1px solid ${item.color}`,

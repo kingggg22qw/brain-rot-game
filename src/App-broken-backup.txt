@@ -1,0 +1,333 @@
+import { useRef, useState } from 'react';
+type Item = { name: string; emoji: string; rarity: string; color: string; price: number; };
+type InventoryItem = Item & { uid: string };
+const cases = [ { name: 'Starter Case', emoji: '📦', price: 100 }, { name: 'Brainrot Case', emoji: '💗', price: 500 }, { name: 'Rare Case', emoji: '💎', price: 1500 }, { name: 'Legendary Case', emoji: '👑', price: 5000 }, { name: 'God Case', emoji: '🔥', price: 15000 }, ];
+const loot: Item[] = [ { name: 'Noobini Pizzanini', emoji: '🍕', rarity: 'Common', color: '#aaaaaa', price: 100 }, { name: 'Lirili Larila', emoji: '🐘', rarity: 'Common', color: '#aaaaaa', price: 150 }, { name: 'Tim Cheese', emoji: '🧀', rarity: 'Uncommon', color: '#42b86b', price: 500 }, { name: 'Trippi Troppi', emoji: '🦐', rarity: 'Rare', color: '#3c91ed', price: 650 }, { name: 'Brr Brr Patapim', emoji: '🌳', rarity: 'Epic', color: '#a34dff', price: 1500 }, { name: 'Cappuccino Assassino', emoji: '☕', rarity: 'Legendary', color: '#ffad33', price: 5000 }, { name: 'Bombardiro Crocodilo', emoji: '🐊', rarity: 'Mythic', color: '#ff4545', price: 15000 }, ];
+const ITEM_WIDTH = 134; const WINNER_INDEX = 24;
+export default function App() { const [balance, setBalance] = useState(1000); const [page, setPage] = useState('cases'); const [selectedCase, setSelectedCase] = useState(cases[0]); const [inventory, setInventory] = useState<InventoryItem[]>([]); const [strip, setStrip] = useState<Item[]>([]); const [winner, setWinner] = useState<Item | null>(null); const [result, setResult] = useState(''); const [rolling, setRolling] = useState(false); const [position, setPosition] = useState(0); const [transitionOn, setTransitionOn] = useState(false); const [selectedItem, setSelectedItem] = useState<string | null>(null); const [targetItem, setTargetItem] = useState<Item | null>(null); const [chance, setChance] = useState(50); const [upgrading, setUpgrading] = useState(false); const [upgradeOutcome, setUpgradeOutcome] = useState<'success' | 'fail' | null>(null); const [upgradeResult, setUpgradeResult] = useState(''); const rouletteRef = useRef<HTMLDivElement>(null);
+const buttonStyle: React.CSSProperties = { background: '#a34dff', color: 'white', border: 'none', borderRadius: 12, padding: '13px 18px', fontWeight: 800, cursor: 'pointer', };
+const cardStyle: React.CSSProperties = { background: '#202033', border: '1px solid #393950', borderRadius: 15, padding: 14, textAlign: 'center', };
+function openCase() { if (rolling) return;
+if (balance < selectedCase.price) {
+  setResult('Not enough balance!');
+  return;
+}
+
+setBalance(old => old - selectedCase.price);
+setWinner(null);
+setResult('');
+setPosition(0);
+setTransitionOn(false);
+
+const prize = loot[Math.floor(Math.random() * loot.length)];
+const newStrip: Item[] = [];
+
+for (let i = 0; i < 35; i++) {
+  if (i === WINNER_INDEX) {
+    newStrip.push(prize);
+  } else {
+    newStrip.push(loot[Math.floor(Math.random() * loot.length)]);
+  }
+}
+
+setStrip(newStrip);
+setRolling(true);
+
+window.setTimeout(() => {
+  const width = rouletteRef.current?.clientWidth ?? 600;
+  const target = width / 2 - (WINNER_INDEX * ITEM_WIDTH + ITEM_WIDTH / 2);
+  setTransitionOn(true);
+  setPosition(target);
+}, 100);
+
+window.setTimeout(() => {
+  setRolling(false);
+  setWinner(prize);
+  setInventory(old => [
+    { ...prize, uid: Date.now() + Math.random() + '' },
+    ...old,
+  ]);
+  setResult('You won ' + prize.name + '!');
+}, 5500);}
+function doUpgrade() { if (upgrading) return; if (!selectedItem) return; if (!targetItem) return;
+const source = inventory.find(item => item.uid === selectedItem);
+
+if (!source) return;
+if (targetItem.price <= source.price) return;
+
+const success = Math.random() * 100 < chance;
+
+setUpgrading(true);
+setUpgradeOutcome(null);
+setUpgradeResult('');
+
+window.setTimeout(() => {
+  setUpgradeOutcome(success ? 'success' : 'fail');
+
+  setInventory(old => {
+    const remaining = old.filter(item => item.uid !== selectedItem);
+
+    if (success) {
+      return [
+        { ...targetItem, uid: Date.now() + Math.random() + '' },
+        ...remaining,
+      ];
+    }<div style={{ fontSize: 11, textAlign: 'center', padding: 4 }}>
+                {item.name}
+              </div>
+              <div style={{ color: item.color, fontSize: 11 }}>
+                {item.rarity}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {winner && (
+        <div style={{
+          ...cardStyle,
+          marginTop: 20,
+          border: '2px solid ' + winner.color,
+          animation: 'winPulse 0.5s infinite alternate',
+        }}>
+          <div style={{ fontSize: 55 }}>{winner.emoji}</div>
+          <h2>{winner.name}</h2>
+          <p style={{ color: winner.color }}>{winner.rarity}</p>
+          <h3>{winner.price.toLocaleString()} SL</h3>
+        </div>
+      )}
+
+      <button
+        onClick={openCase}
+        disabled={rolling}
+        style={{
+          ...buttonStyle,
+          width: '100%',
+          marginTop: 24,
+          padding: 18,
+          fontSize: 18,
+        }}
+      >
+        {rolling ? '🎰 ROLLING...' : 'OPEN CASE — ' + selectedCase.price + ' SL'}
+      </button>
+
+      <p style={{ textAlign: 'center', color: '#ffd34d' }}>{result}</p>
+    </>
+  )}
+
+  {page === 'inventory' && (
+    <>
+      <h2>🎒 YOUR INVENTORY</h2>
+      <p style={{ color: '#aaa' }}>Your collected items</p>
+
+      {inventory.length === 0 && (
+        <p style={{ color: '#888' }}>Your inventory is empty. Open a case!</p>
+      )}
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: 12,
+      }}>
+        {inventory.map(item => (
+          <div key={item.uid} style={{
+            ...cardStyle,
+            border: '1px solid ' + item.color,
+            cursor: 'pointer',
+            outline: selectedItem === item.uid ? '2px solid #a34dff' : 'none',
+          }} onClick={() => {
+            if (upgrading) return;
+            setSelectedItem(item.uid);
+            setUpgradeResult('');
+          }}>
+            <div style={{ fontSize: 42 }}>{item.emoji}</div>
+            <b>{item.name}</b>
+            <p style={{ color: item.color }}>{item.rarity}</p>
+            <b>{item.price.toLocaleString()} SL</b>
+            <p style={{ fontSize: 12, color: '#aaa' }}>
+              {selectedItem === item.uid ? 'SELECTED' : 'TAP TO SELECT'}
+            </p>
+          </div>
+        ))}
+      </div>
+    </>
+  )}
+
+  {page === 'upgrader' && (
+    <>
+      <h2>⚡ ITEM UPGRADER</h2>
+      <p style={{ color: '#aaa' }}>Select an item and try to upgrade it!</p>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 12,
+        marginTop: 20,
+      }}>
+        <div style={cardStyle}>
+          <h3>YOUR ITEM</h3>
+          {selectedSource ? (
+            <>
+              <div style={{ fontSize: 45 }}>{selectedSource.emoji}</div>
+              <b>{selectedSource.name}</b>
+              <p>{selectedSource.price.toLocaleString()} SL</p>
+            </>
+          ) : (
+            <p style={{ color: '#888' }}>Choose from inventory</p>
+          )}
+          <button
+            style={buttonStyle}
+            onClick={() => setPage('inventory')}
+            disabled={upgrading}
+          >
+            SELECT
+          </button>
+        </div>
+
+        <div style={cardStyle}>
+          <h3>TARGET ITEM</h3>
+          {targetItem ? (
+            <>
+              <div style={{ fontSize: 45 }}>{targetItem.emoji}</div>
+              <b>{targetItem.name}</b>
+              <p>{targetItem.price.toLocaleString()} SL</p>
+            </>
+          ) : (
+            <p style={{ color: '#888' }}>Choose target</p>
+          )}
+        </div>
+      </div>
+
+      {selectedSource && (
+        <>
+          <h3 style={{ marginTop: 25 }}>CHOOSE TARGET</h3>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+            gap: 10,
+          }}>
+            {possibleTargets.map(item => (
+              <div
+                key={item.name}
+                onClick={() => {
+                  if (upgrading) return;
+                  setTargetItem(item);setUpgradeResult('');
+                }}
+                style={{
+                  ...cardStyle,
+                  border: targetItem?.name === item.name
+                    ? '2px solid #a34dff'
+                    : '1px solid ' + item.color,
+                  cursor: 'pointer',
+                }}
+              >
+                <div style={{ fontSize: 35 }}>{item.emoji}</div>
+                <b style={{ fontSize: 12 }}>{item.name}</b>
+                <p style={{ color: item.color }}>{item.price.toLocaleString()} SL</p>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <h3 style={{ marginTop: 25 }}>SUCCESS CHANCE</h3>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[10, 20, 50, 75].map(value => (
+          <button
+            key={value}
+            disabled={upgrading}
+            onClick={() => setChance(value)}
+            style={{
+              ...buttonStyle,
+              flex: 1,
+              background: chance === value ? '#a34dff' : '#303047',
+            }}
+          >
+            {value}%
+          </button>
+        ))}
+      </div>
+
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: 22,
+        padding: 15,
+        background: '#202033',
+        borderRadius: 12,
+      }}>
+        <b>WIN CHANCE</b>
+        <b style={{ color: '#c78aff' }}>{chance}%</b>
+      </div>
+
+      <button
+        onClick={doUpgrade}
+        disabled={upgrading  <h3>{c.name}</h3>
+   !targetItem}
+        style={{
+          ...buttonStyle,
+          width: '100%',
+          padding: 18,
+          marginTop: 18,
+          fontSize: 20,
+          background: upgradeOutcome === 'success'
+            ? '#a34dff'
+            : upgradeOutcome === 'fail'
+            ? '#ff3030'
+            : '#7935bd',
+          boxShadow: upgradeOutcome === 'success'
+            ? '0 0 35px #a34dff'
+            : upgradeOutcome === 'fail'
+            ? '0 0 35px #ff3030'
+            : 'none',
+          animation: upgrading ? 'upgradePulse 0.7s infinite alternate' : 'none',
+        }}
+      >
+        {upgrading ? '⚡ UPGRADING...' : '⚡ UPGRADE'}
+      </button>
+
+      {upgradeResult && (
+        <div style={{
+          ...cardStyle,
+          marginTop: 18,
+          border: '2px solid ' + (upgradeOutcome === 'success' ? '#a34dff' : '#ff3030'),
+          fontSize: 17,
+        }}>
+          {upgradeResult}
+        </div>
+      )}
+    </>
+  )}
+
+  <nav style={{
+    position: 'fixed',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    display: 'flex',
+    justifyContent: 'space-around',
+    background: '#1c1c2b',
+    borderTop: '1px solid #393950',
+    padding: '12px 5px',
+    zIndex: 10,
+  }}>
+    {[
+      { id: 'cases', label: '🎁 Cases' },
+      { id: 'inventory', label: '🎒 Items' },
+      { id: 'upgrader', label: '⚡ Upgrade' },
+    ].map(tab => (
+      <button
+        key={tab.id}
+        onClick={() => setPage(tab.id)}
+        style={{
+          ...buttonStyle,
+          background: page === tab.id ? '#7935bd' : 'transparent',
+          fontSize: 13,
+          padding: '10px 12px',
+        }}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </nav>
+</main>); }
