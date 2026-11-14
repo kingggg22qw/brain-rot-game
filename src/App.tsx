@@ -284,6 +284,8 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
             }}
             style={{
               ...cardStyle,
+              display: 'flex',
+              flexDirection: 'column',
               cursor: index <= 1 ? 'pointer' : 'default',
               gridColumn: 'auto',
               opacity: index <= 1 ? 1 : 0.5,
@@ -309,7 +311,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
 )}
             <h3>{c.name}</h3>
             <p style={{ color: '#ffd34d' }}>{c.price.toLocaleString()} SL</p>
-            <button style={buttonStyle}>
+            <button style={{ ...buttonStyle, marginTop: 'auto', alignSelf: 'center' }}>
               {index <= 1 ? 'SELECT CASE' : 'COMING SOON'}
             </button>
           </div>
