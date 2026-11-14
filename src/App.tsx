@@ -21,16 +21,16 @@ const starterLoot: WeightedItem[] = [
 ];
 
 const chaosLoot: WeightedItem[] = [
-  { name: 'Ventoliero Pavonero', emoji: '🦚', rarity: 'Rare', color: '#3c91ed', price: 35, weight: 22 },
-  { name: 'Los Spaghettis', emoji: '🍝', rarity: 'Rare', color: '#3c91ed', price: 40, weight: 20 },
+  { name: 'Ventoliero Pavonero', emoji: '🦚', rarity: 'Rare', color: '#3c91ed', price: 35, weight: 25 },
+  { name: 'Los Spaghettis', emoji: '🍝', rarity: 'Rare', color: '#3c91ed', price: 40, weight: 23 },
   { name: 'Nacho Spyder', emoji: '🕷️', rarity: 'Epic', color: '#a34dff', price: 65, weight: 17 },
   { name: 'Noodle Noodle Poodle', emoji: '🐩', rarity: 'Epic', color: '#a34dff', price: 70, weight: 15 },
-  { name: 'Capitano Moby', emoji: '🐳', rarity: 'Legendary', color: '#ffad33', price: 110, weight: 9 },
-  { name: 'Spooky and Pumky', emoji: '🎃', rarity: 'Legendary', color: '#ffad33', price: 130, weight: 7 },
-  { name: "S'more Serat", emoji: '🍫', rarity: 'Legendary', color: '#ffad33', price: 150, weight: 5 },
-  { name: 'Gold and Diamond', emoji: '💎', rarity: 'Mythic', color: '#ff4545', price: 220, weight: 3 },
-  { name: 'Hydra Serpent', emoji: '🐍', rarity: 'Mythic', color: '#ff4545', price: 300, weight: 1.9 },
-  { name: 'La Casa Boo', emoji: '👻', rarity: 'Secret', color: '#ff4dd8', price: 500, weight: 0.1 },
+  { name: 'Capitano Moby', emoji: '🐳', rarity: 'Legendary', color: '#ffad33', price: 110, weight: 7 },
+  { name: 'Spooky and Pumky', emoji: '🎃', rarity: 'Legendary', color: '#ffad33', price: 130, weight: 5 },
+  { name: "S'more Serat", emoji: '🍫', rarity: 'Legendary', color: '#ffad33', price: 150, weight: 4 },
+  { name: 'Gold and Diamond', emoji: '💎', rarity: 'Mythic', color: '#ff4545', price: 220, weight: 2 },
+  { name: 'Hydra Serpent', emoji: '🐍', rarity: 'Mythic', color: '#ff4545', price: 300, weight: 1.5 },
+  { name: 'La Casa Boo', emoji: '👻', rarity: 'Secret', color: '#ff4dd8', price: 500, weight: 0.5 },
 ];
 
 function pickChaosDrop(): Item {
@@ -236,10 +236,25 @@ function doUpgrade() {
   }, duration + 100);
 }
 const selectedSource = inventory.find(item => item.uid === selectedItem);
-const possibleTargets = selectedSource ? [...starterLoot, ...chaosLoot].filter(item => item.price > selectedSource.price) : [];
+const possibleTargets = selectedSource
+  ? [...starterLoot, ...chaosLoot].filter(item => item.price > selectedSource.price && selectedSource.price / item.price * 100 <= 75)
+  : [];
 const chance = selectedSource && targetItem
-  ? Math.min(100, selectedSource.price / targetItem.price * 100)
+  ? Math.min(75, selectedSource.price / targetItem.price * 100)
   : 0;
+const chooseTarget = (mode: number | 'double') => {
+  if (!selectedSource || upgrading) return;
+  const target = [...possibleTargets].sort((a, b) => {
+    const score = (item: Item) => mode === 'double'
+      ? Math.abs(item.price - selectedSource.price * 2)
+      : Math.abs(selectedSource.price / item.price * 100 - mode);
+    return score(a) - score(b);
+  })[0];
+  if (target) {
+    setTargetItem(target);
+    setUpgradeResult('');
+  }
+};
 return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white', fontFamily: 'Arial, sans-serif', padding: 16, paddingBottom: 100, }}> <style>{`* { box-sizing: border-box; } @keyframes upgradePulse { from { filter: brightness(1); transform: scale(1); } to { filter: brightness(1.6); transform: scale(1.04); } } @keyframes upgradeSpin { to { transform: rotate(360deg); } } @keyframes winPulse { from { transform: scale(1); } to { transform: scale(1.05); } } button:disabled { opacity: 0.5; }`}</style>
   <header style={{
     display: 'flex',
@@ -559,7 +574,22 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+      {selectedSource && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 20 }}>
+          {[75, 50, 'double', 30, 10].map(mode => (
+            <button
+              key={String(mode)}
+              onClick={() => chooseTarget(mode as number | 'double')}
+              disabled={upgrading || possibleTargets.length === 0}
+              style={{ ...buttonStyle, flex: '1 1 58px', minWidth: 58, padding: '14px 10px', background: '#29293d', fontSize: 16, fontWeight: 800 }}
+            >
+              {mode === 'double' ? '×2' : `${mode}%`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 10 }}>
         <button type="button" disabled={upgrading} onClick={() => setUpgradeSpeed('fast')} style={{ ...buttonStyle, flex: 1, background: upgradeSpeed === 'fast' ? '#7935bd' : '#252538', border: upgradeSpeed === 'fast' ? '2px solid #c78aff' : '2px solid transparent' }}>
           FAST · 5 SEC
         </button>
