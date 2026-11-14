@@ -33,24 +33,29 @@ const chaosLoot: WeightedItem[] = [
   { name: 'La Casa Boo', emoji: '👻', rarity: 'Secret', color: '#ff4dd8', price: 500, weight: 0.5 },
 ];
 
-function pickChaosDrop(): Item {
-  const total = chaosLoot.reduce((sum, item) => sum + item.weight, 0);
+function pickWeightedDrop(loot: WeightedItem[], streak: number, casePrice: number, bonusStep = 0.05): Item {
+  const bonus = 1 + Math.min(streak, 4) * bonusStep;
+  const total = loot.reduce(
+    (sum, item) => sum + item.weight * (item.price > casePrice ? bonus : 1),
+    0
+  );
+
   let roll = Math.random() * total;
-  for (const item of chaosLoot) {
-    roll -= item.weight;
+
+  for (const item of loot) {
+    roll -= item.weight * (item.price > casePrice ? bonus : 1);
     if (roll <= 0) return item;
   }
-  return chaosLoot[0];
+
+  return loot[0];
 }
 
-function pickStarterDrop(): Item {
-  const total = starterLoot.reduce((sum, item) => sum + item.weight, 0);
-  let roll = Math.random() * total;
-  for (const item of starterLoot) {
-    roll -= item.weight;
-    if (roll <= 0) return item;
-  }
-  return starterLoot[0];
+function pickChaosDrop(streak = 0): Item {
+  return pickWeightedDrop(chaosLoot, streak, 75);
+}
+
+function pickStarterDrop(streak = 0): Item {
+  return pickWeightedDrop(starterLoot, streak, 19, 0.25);
 }
 
 const brainrotImages: Record<string, string> = {
@@ -92,6 +97,12 @@ export default function App() {
   const [upgradeRotation, setUpgradeRotation] = useState(0); const [upgradeOutcome, setUpgradeOutcome] = useState<'success' | 'fail' | null>(null); const [upgradeResult, setUpgradeResult] = useState(''); const rouletteRefs = useRef<(HTMLDivElement | null)[]>([]);
 const rollTimeout = useRef<number | null>(null);
 const pendingPrizes = useRef<Item[] | null>(null);
+const lossStreaks = useRef<Record<string, number>>({
+  'Starter Case': 0,
+  'Brainrot Chaos Case': 0
+});
+const pendingCaseName = useRef<string | null>(null);
+const pendingCaseCost = useRef(0);
 const targetPositions = useRef<number[]>([]);
 const skipRequested = useRef(false);
 const [rollDuration, setRollDuration] = useState(5200);
@@ -128,6 +139,18 @@ function finishRoll() {
   const prizes = pendingPrizes.current;
   if (!prizes) return;
 
+  const caseName = pendingCaseName.current;
+  const caseCost = pendingCaseCost.current;
+  const totalValue = prizes.reduce((sum, item) => sum + item.price, 0);
+
+  if (caseName) {
+    lossStreaks.current[caseName] = totalValue < caseCost
+      ? Math.min((lossStreaks.current[caseName] || 0) + 1, 4)
+      : 0;
+  }
+
+  pendingCaseName.current = null;
+  pendingCaseCost.current = 0;
   pendingPrizes.current = null;
   rollTimeout.current = null;
   setTransitionOn(false);
@@ -211,9 +234,9 @@ function openCase() {
 
   const prizes: Item[] = Array.from({ length: openQuantity }, () =>
     selectedCase.name === 'Starter Case'
-      ? pickStarterDrop()
+      ? pickStarterDrop(lossStreaks.current['Starter Case'])
       : selectedCase.name === 'Brainrot Chaos Case'
-        ? pickChaosDrop()
+        ? pickChaosDrop(lossStreaks.current['Brainrot Chaos Case'])
         : caseLoot[Math.floor(Math.random() * caseLoot.length)]
   );
 
@@ -228,6 +251,8 @@ function openCase() {
   });
 
   pendingPrizes.current = prizes;
+  pendingCaseName.current = selectedCase.name;
+  pendingCaseCost.current = totalPrice;
   setStrips(newStrips);
   rouletteRefs.current = [];
   setRolling(true);
