@@ -90,6 +90,11 @@ export default function App() {
   const [balance, setBalance] = useState(1000); const [page, setPage] = useState('cases'); const [selectedCase, setSelectedCase] = useState(cases[0]); const [inventory, setInventory] = useState<InventoryItem[]>([]); const [strips, setStrips] = useState<Item[][]>([]); const [winner, setWinner] = useState<Item | null>(null); const [winnerUids, setWinnerUids] = useState<string[]>([]); const [winnerTotal, setWinnerTotal] = useState(0); const [openQuantity, setOpenQuantity] = useState(1); const [result, setResult] = useState(''); const [rolling, setRolling] = useState(false); const [positions, setPositions] = useState<number[]>([]); const [transitionOn, setTransitionOn] = useState(false); const [selectedItem, setSelectedItem] = useState<string | null>(null); const [targetItem, setTargetItem] = useState<Item | null>(null);  const [upgrading, setUpgrading] = useState(false);
   const [upgradeSpeed, setUpgradeSpeed] = useState<'fast' | 'slow'>('fast');
   const [upgradeRotation, setUpgradeRotation] = useState(0); const [upgradeOutcome, setUpgradeOutcome] = useState<'success' | 'fail' | null>(null); const [upgradeResult, setUpgradeResult] = useState(''); const rouletteRefs = useRef<(HTMLDivElement | null)[]>([]);
+const rollTimeout = useRef<number | null>(null);
+const pendingPrizes = useRef<Item[] | null>(null);
+const targetPositions = useRef<number[]>([]);
+const skipRequested = useRef(false);
+const [rollDuration, setRollDuration] = useState(5200);
 const buttonStyle: React.CSSProperties = { background: '#a34dff', color: 'white', border: 'none', borderRadius: 12, padding: '13px 18px', fontWeight: 800, cursor: 'pointer', };
 const cardStyle: React.CSSProperties = { background: '#202033', border: '1px solid #393950', borderRadius: 15, padding: 14, textAlign: 'center', };
 
@@ -119,6 +124,65 @@ function sellWinner() {
   setWinnerTotal(0);
 }
 
+function finishRoll() {
+  const prizes = pendingPrizes.current;
+  if (!prizes) return;
+
+  pendingPrizes.current = null;
+  rollTimeout.current = null;
+  setTransitionOn(false);
+  setRolling(false);
+  skipRequested.current = false;
+  targetPositions.current = [];
+  setRollDuration(5200);
+
+  const newItems = prizes.map(item => ({
+    ...item,
+    uid: Date.now() + Math.random() + ''
+  }));
+
+  setWinner(prizes[0]);
+  setWinnerUids(newItems.map(item => item.uid));
+  setWinnerTotal(prizes.reduce((sum, item) => sum + item.price, 0));
+  setInventory(old => [...newItems, ...old]);
+  setResult('You opened ' + prizes.length + ' case(s)! All prizes added to inventory.');
+}
+
+function skipRoll() {
+  if (!pendingPrizes.current || skipRequested.current) return;
+
+  skipRequested.current = true;
+
+  if (rollTimeout.current !== null) {
+    window.clearTimeout(rollTimeout.current);
+    rollTimeout.current = null;
+  }
+
+  if (targetPositions.current.length === 0) return;
+
+  const currentPositions = rouletteRefs.current.map(container => {
+    const strip = container?.children[1] as HTMLElement | undefined;
+    if (!container || !strip) return 0;
+
+    return strip.getBoundingClientRect().left -
+      container.getBoundingClientRect().left;
+  });
+
+  setTransitionOn(false);
+  setPositions(currentPositions);
+
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      if (!pendingPrizes.current) return;
+
+      setRollDuration(550);
+      setTransitionOn(true);
+      setPositions(targetPositions.current);
+      rollTimeout.current = window.setTimeout(finishRoll, 650);
+    });
+  });
+}
+
 function openCase() {
   if (rolling) return;
 
@@ -135,6 +199,9 @@ function openCase() {
   setResult('');
   setPositions(Array(openQuantity).fill(0));
   setTransitionOn(false);
+  skipRequested.current = false;
+  targetPositions.current = [];
+  setRollDuration(5200);
 
   const caseLoot: Item[] = selectedCase.name === 'Starter Case'
     ? starterLoot
@@ -160,11 +227,14 @@ function openCase() {
     return reel;
   });
 
+  pendingPrizes.current = prizes;
   setStrips(newStrips);
   rouletteRefs.current = [];
   setRolling(true);
 
   window.setTimeout(() => {
+    if (!pendingPrizes.current) return;
+
     const targets = newStrips.map((_, index) => {
       const container = rouletteRefs.current[index];
       const stripElement = container?.children[1] as HTMLElement | undefined;
@@ -179,24 +249,18 @@ function openCase() {
         (cardRect.left - containerRect.left + cardRect.width / 2);
     });
 
+    targetPositions.current = targets;
     setTransitionOn(true);
     setPositions(targets);
+
+    if (skipRequested.current) {
+      setRollDuration(550);
+      rollTimeout.current = window.setTimeout(finishRoll, 650);
+    }
   }, 100);
 
-  window.setTimeout(() => {
-    setRolling(false);
-
-    const newItems = prizes.map(item => ({
-      ...item,
-      uid: Date.now() + Math.random() + ''
-    }));
-
-    setWinner(prizes[0]);
-    setWinnerUids(newItems.map(item => item.uid));
-    setWinnerTotal(prizes.reduce((sum, item) => sum + item.price, 0));
-    setInventory(old => [...newItems, ...old]);
-    setResult('You opened ' + openQuantity + ' case(s)! All prizes added to inventory.');
-  }, 5500);
+  pendingPrizes.current = prizes;
+  rollTimeout.current = window.setTimeout(finishRoll, 5500);
 }
 function doUpgrade() {
   if (upgrading || !selectedItem || !targetItem) return;
@@ -401,7 +465,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
               top: 15,
               transform: `translateX(${positions[reelIndex] || 0}px)`,
               transition: transitionOn
-                ? 'transform 5.2s cubic-bezier(0.12, 0.75, 0.08, 1)'
+                ? `transform ${rollDuration}ms cubic-bezier(0.12, 0.75, 0.08, 1)`
                 : 'none',
             }}>
               {reel.map((item, index) => (
@@ -451,8 +515,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
       )}
 
       <button
-        onClick={openCase}
-        disabled={rolling}
+        onClick={rolling ? skipRoll : openCase}
         style={{
           ...buttonStyle,
           width: '100%',
@@ -461,7 +524,7 @@ return ( <main style={{ minHeight: '100vh', background: '#11111d', color: 'white
           fontSize: 18,
         }}
       >
-        {rolling ? '🎰 ROLLING...' : 'OPEN ' + openQuantity + ' CASE' + (openQuantity > 1 ? 'S' : '') + ' — ' + (selectedCase.price * openQuantity).toLocaleString() + ' SL'}
+        {rolling ? '⏭ SKIP' : 'OPEN ' + openQuantity + ' CASE' + (openQuantity > 1 ? 'S' : '') + ' — ' + (selectedCase.price * openQuantity).toLocaleString() + ' SL'}
       </button>
 
       <p style={{ textAlign: 'center', color: '#ffd34d' }}>{result}</p>
